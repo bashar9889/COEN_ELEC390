@@ -24,7 +24,7 @@ public class ItemFragment extends Fragment {
         binding = FragmentItemsBinding.inflate(inflater, container, false);
         View root = binding.getRoot();
 
-        final TextView textView = binding.textHome;
+        final TextView textView = binding.textItem;
         itemViewModel.getText().observe(getViewLifecycleOwner(), textView::setText);
         return root;
     }
