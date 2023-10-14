@@ -12,7 +12,7 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.example.coenelec390.databinding.FragmentItemsBinding;
 
-public class ItemFragment extends Fragment {
+public class ItemFragment extends Fragment {//TODO: To remove
 
     private FragmentItemsBinding binding;
 

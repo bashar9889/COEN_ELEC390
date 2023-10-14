@@ -1,4 +1,4 @@
-package com.example.coenelec390.ui;
+package com.example.coenelec390;
 
 import com.example.coenelec390.ui.item.Item;
 
