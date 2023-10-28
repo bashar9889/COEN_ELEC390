@@ -12,8 +12,9 @@ import android.util.Log;
 import android.widget.Toast;
 
 import androidx.core.app.ActivityCompat;
-
+  /*Static class containing special functions everyone may always need */
 public class Utils {
+
     private static final String TAG = "MAIN_ACTIVITY";
     public static boolean hasBluetooth(BluetoothAdapter adapter){
         if(adapter == null || !(adapter.isEnabled())) return false;
