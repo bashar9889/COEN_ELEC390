@@ -40,6 +40,7 @@ import com.example.coenelec390.Utils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class BLE_MANAGER {
     Context context;
@@ -69,7 +70,6 @@ public class BLE_MANAGER {
     }
 
 
-
     public void connectPeripheral() {
         if (!peripheralAvailable) {
             Utils.print("Peripheral not available");
@@ -85,7 +85,9 @@ public class BLE_MANAGER {
         gatt = peripheral.connectGatt(context, false, gattCallback, TRANSPORT_LE);
 
         //TODO : do something some freakin chaching
-    };
+    }
+
+    ;
     private final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
@@ -107,7 +109,7 @@ public class BLE_MANAGER {
                     int delayWhenBonded = 0;
                     //for some version need to
                     if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.N) {
-                        delayWhenBonded= 1000;
+                        delayWhenBonded = 1000;
                     }
                     final int delay = bondState == BOND_BONDED ? delayWhenBonded : 0;
 
@@ -119,52 +121,78 @@ public class BLE_MANAGER {
                                 requestPermissions();
                                 return;
                             }
-                            Utils.print("discovering services + " + peripheral.getName() + " " + delay);
+                            Utils.print("discovering services of  + " + peripheral.getName() + " " + delay);
                             boolean success = gatt.discoverServices();
-                            if(!success){
+                            if (!success) {
                                 Utils.print("DiscoveryServiceRunnable :  discoverServices failed to start ");
                             }
                         }
                     };
                     bleHandler.postDelayed(discoveryServicesRunnable, delay);
-                } else if(bondState == BOND_BONDING){
+                } else if (bondState == BOND_BONDING) {
                     Utils.print("Waiting for bonding to complete");
                 }
-        } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-            Utils.print("Disconnected from GATT server.");
-            gatt.close();
-        }
-    }
-    @Override
-    public void onPhyUpdate(BluetoothGatt gatt, int txPhy, int rxPhy, int status) {
-        super.onPhyUpdate(gatt, txPhy, rxPhy, status);
-    }
-
-    @Override
-    public void onPhyRead(BluetoothGatt gatt, int txPhy, int rxPhy, int status) {
-        super.onPhyRead(gatt, txPhy, rxPhy, status);
-    }
-
-
-    @Override
-    public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-        super.onServicesDiscovered(gatt, status);
-        if (status == BluetoothGatt.GATT_SUCCESS) {
-            List<BluetoothGattService> services = gatt.getServices();
-            for (BluetoothGattService service : services) {
-                Utils.print("Service found: " + service.getUuid().toString());
-                for (BluetoothGattCharacteristic characteristic : service.getCharacteristics()) {
-                    Utils.print("-- Characteristic found: " + characteristic.getUuid().toString());
-                }
+            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                Utils.print("Disconnected from GATT server.");
+                gatt.close();
             }
+        }
+
+        @Override
+        public void onPhyUpdate(BluetoothGatt gatt, int txPhy, int rxPhy, int status) {
+            super.onPhyUpdate(gatt, txPhy, rxPhy, status);
+        }
+
+        @Override
+        public void onPhyRead(BluetoothGatt gatt, int txPhy, int rxPhy, int status) {
+            super.onPhyRead(gatt, txPhy, rxPhy, status);
+        }
+
+
+        @Override
+        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+            super.onServicesDiscovered(gatt, status);
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                //TODO : clean up this mess
+                UUID serviceUUID = UUID.fromString("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
+                UUID characteristicUUID = UUID.fromString("beb5483e-36e1-4688-b7f5-ea07361b26a8");
+                // get the ble gatt characteristic
+                BluetoothGattService service = gatt.getService(serviceUUID);
+                if (service != null) {
+                    BluetoothGattCharacteristic characteristic = service.getCharacteristic(characteristicUUID);
+
+                    if(characteristic != null){
+                        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                            requestPermissions();
+                            return;
+                        }
+                        gatt.readCharacteristic(characteristic);
+                    }{ Utils.print("Characteristic not found");}
+                } else { Utils.print("Service not found");}
+//            List<BluetoothGattService> services = gatt.getServices();
+//            for (BluetoothGattService service : services) {
+//                Utils.print("Service found: " + service.getUuid().toString());
+//                for (BluetoothGattCharacteristic characteristic : service.getCharacteristics()) {
+//                    Utils.print("-- Characteristic found: " + characteristic.getUuid().toString());
+//                }
+//            }
         } else {
             Utils.print("Service discovery failed with status: " + status);
         }
     }
+
         @Override
-    public void onCharacteristicRead(@NonNull BluetoothGatt gatt, @NonNull BluetoothGattCharacteristic characteristic, @NonNull byte[] value, int status) {
-        super.onCharacteristicRead(gatt, characteristic, value, status);
-    }
+        public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            super.onCharacteristicRead(gatt, characteristic, status);
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                // The data is contained in the characteristic's value
+                byte[] data = characteristic.getValue();
+
+            } else {
+                Utils.print("Failed to read characteristic");
+            }
+        }
+
 
     @Override
     public void onCharacteristicChanged(@NonNull BluetoothGatt gatt, @NonNull BluetoothGattCharacteristic characteristic, @NonNull byte[] value) {
