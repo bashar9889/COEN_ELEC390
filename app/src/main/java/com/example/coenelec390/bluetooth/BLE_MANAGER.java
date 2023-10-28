@@ -5,14 +5,15 @@ import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.le.BluetoothLeScanner;
+import android.bluetooth.le.ScanCallback;
+import android.bluetooth.le.ScanResult;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.os.Handler;
+import android.os.AsyncTask;
 import android.provider.Settings;
-import android.util.Log;
-import android.widget.Button;
+
 
 import androidx.core.app.ActivityCompat;
 
@@ -22,11 +23,9 @@ import java.util.ArrayList;
 public class BLE_MANAGER {
     Context context;
     Activity activity;
-    private BluetoothAdapter btAdapter;
-    private BluetoothLeScanner btScanner;
-    private static final int REQUEST_ENABLE_BT = 1;
-    private int BLUETOOTH_PERMISSION_CODE = 1;
-    private BLE_STATE btState;
+    private final BluetoothAdapter btAdapter;
+    private final BluetoothLeScanner btScanner;
+    private final BLE_STATE btState;
     private static final long SCAN_PERIOD = 10000;
     ArrayList<BLE_DEVICE> devices;
 
@@ -42,11 +41,52 @@ public class BLE_MANAGER {
         btState = new BLE_STATE(context);
         devices = new ArrayList<>();
     }
-    public  boolean hasBluetooth(){
-        if(btAdapter == null || !(btAdapter.isEnabled())) return false;
-        return true;
+    public void startScan() {
+        Utils.print("Scanning started");
+        AsyncTask.execute(new Runnable() {
+            @Override
+            public void run() {
+                if (ActivityCompat.checkSelfPermission(activity, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions();
+                    return;
+                }
+                btScanner.startScan(leScanCallback);
+            }
+        });
     }
 
+    public void stopScan() {
+        Utils.print("Scan Stopping");
+        AsyncTask.execute(() -> {
+            if (ActivityCompat.checkSelfPermission(activity, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions();
+                return;
+            }
+            btScanner.stopScan(leScanCallback);
+        });
+    }
+
+    public void showDevices(){
+        if (devices.size() != 0) {
+            for (BLE_DEVICE device : devices) {
+                String deviceInfo = "Device Name:  " + device.getName() + "  Address : " + device.getAddress() + " rssi : " + device.getRSSI() + "\n";
+                String espName = "ESP32";
+                Utils.print(deviceInfo);
+            }
+        } else Utils.print("No devices found");
+    }
+    private ScanCallback leScanCallback = new ScanCallback() {
+        @Override
+        public void onScanResult(int callbackType, ScanResult result) {
+            super.onScanResult(callbackType, result);
+            if (ActivityCompat.checkSelfPermission(activity, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions();
+                return;
+            }
+            BLE_DEVICE device = new BLE_DEVICE(result.getDevice(), result.getDevice().getName(), result.getRssi());
+            devices.add(device);
+        }
+    };
 
     public void enableBluetooth() {
         Intent enableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
@@ -71,6 +111,11 @@ public class BLE_MANAGER {
         // broadcast the fact that bluetooth changed
         IntentFilter newIntent = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
         activity.registerReceiver(btState, newIntent);
+    }
+
+    public  boolean hasBluetooth(){
+        if(btAdapter == null || !(btAdapter.isEnabled())) return false;
+        return true;
     }
 
     public void requestPermissions() {

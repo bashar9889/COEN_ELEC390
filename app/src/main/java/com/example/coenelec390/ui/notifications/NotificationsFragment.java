@@ -50,7 +50,7 @@ public class NotificationsFragment extends Fragment {
             @Override
             public void onClick(View view) {
                 if (!bleManager.hasBluetooth())  bleManager.enableBluetooth();
-//                startScanning();
+                bleManager.startScan();
             }
         });
 
@@ -59,6 +59,8 @@ public class NotificationsFragment extends Fragment {
         stopScan.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                bleManager.stopScan();
+                bleManager.showDevices();
             }
         });
 
