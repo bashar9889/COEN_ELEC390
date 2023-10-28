@@ -2,9 +2,11 @@ package com.example.coenelec390.bluetooth;
 
 import static android.bluetooth.BluetoothDevice.BOND_BONDED;
 import static android.bluetooth.BluetoothDevice.BOND_BONDING;
+import static android.bluetooth.BluetoothDevice.TRANSPORT_LE;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -17,13 +19,16 @@ import android.bluetooth.BluetoothProfile;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
 import android.bluetooth.le.ScanResult;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Looper;
 import android.provider.Settings;
 
@@ -45,8 +50,9 @@ public class BLE_MANAGER {
     BluetoothGatt gatt;
     private static final long SCAN_PERIOD = 10000;
     ArrayList<BLE_DEVICE> devices;
-    BluetoothDevice esp32;
+    BluetoothDevice peripheral;
     Handler bleHandler;
+    private boolean peripheralAvailable = false;
 
 
     public BLE_MANAGER(Activity _activity) {
@@ -58,10 +64,26 @@ public class BLE_MANAGER {
 
 
         btState = new BLE_STATE(context);
-        devices = new ArrayList<>();
         bleHandler = new Handler(Looper.getMainLooper());
 
     }
+
+
+
+    public void connectPeripheral() {
+        if (!peripheralAvailable) {
+            Utils.print("Peripheral not available");
+            return;
+        }
+        // start the gatt connection
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions();
+            return;
+        }
+
+        Utils.print("Peripheral available, attempting to connect devices");
+        gatt = peripheral.connectGatt(context, false, gattCallback, TRANSPORT_LE);
+    };
     private final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
@@ -76,7 +98,7 @@ public class BLE_MANAGER {
                     requestPermissions();
                     return;
                 }
-                int bondState = esp32.getBondState();
+                int bondState = peripheral.getBondState();
                 //
                 // If BOND_BONDING: bonding is in progress, don’t call discoverServices()
                 if (bondState == BluetoothDevice.BOND_NONE || bondState == BOND_BONDED) {
@@ -95,7 +117,7 @@ public class BLE_MANAGER {
                                 requestPermissions();
                                 return;
                             }
-                            Utils.print("discovering services + " + esp32.getName() + " " + delay);
+                            Utils.print("discovering services + " + peripheral.getName() + " " + delay);
                             boolean success = gatt.discoverServices();
                             if(!success){
                                 Utils.print("DiscoveryServiceRunnable :  discoverServices failed to start ");
@@ -152,8 +174,10 @@ public class BLE_MANAGER {
         super.onDescriptorRead(gatt, descriptor, status, value);
     }
 };
+
     public void startScan() {
         Utils.print("Scanning started");
+        devices = new ArrayList<>();
         AsyncTask.execute(new Runnable() {
             @Override
             public void run() {
@@ -206,9 +230,16 @@ public class BLE_MANAGER {
     public void showDevices(){
         if (devices.size() != 0) {
             for (BLE_DEVICE device : devices) {
-                String deviceInfo = "Device Name:  " + device.getName() + "  Address : " + device.getAddress() + " rssi : " + device.getRSSI() + "\n";
-                String espName = "ESP32";
+                String name = device.getName();
+                String deviceInfo = "Device Name:  " + name + "  Address : " + device.getAddress() + " rssi : " + device.getRSSI() + "\n";
                 Utils.print(deviceInfo);
+                //make sure null string pass because it will have a null pointer exption
+                if(name == null) continue;
+                if(name.equals("ESP32")) {
+                    peripheralAvailable = true;
+                    peripheral = device.getDevice();
+//                    break;
+                }
             }
         } else Utils.print("No devices found");
     }
@@ -221,10 +252,6 @@ public class BLE_MANAGER {
                 return;
             }
             BLE_DEVICE device = new BLE_DEVICE(result.getDevice(), result.getDevice().getName(), result.getRssi());
-            if(device.getName().equals("ESP32")) {
-                gatt = result.getDevice().connectGatt(context, false, gattCallback);
-                esp32 = result.getDevice();
-            }
             devices.add(device);
         }
 

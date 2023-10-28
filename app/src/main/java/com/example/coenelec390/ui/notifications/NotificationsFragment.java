@@ -64,6 +64,13 @@ public class NotificationsFragment extends Fragment {
             }
         });
 
+        Button connect = root.findViewById(R.id.connect);
+        connect.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                bleManager.connectPeripheral();
+            }
+        });
         return root;
     }
 

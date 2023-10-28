@@ -25,4 +25,7 @@ public class BLE_DEVICE {
     public int getRSSI(){
         return rssi;
     }
+    public BluetoothDevice getDevice(){
+        return device;
+    }
 }
