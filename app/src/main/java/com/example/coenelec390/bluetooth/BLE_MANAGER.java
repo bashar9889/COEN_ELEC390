@@ -83,6 +83,8 @@ public class BLE_MANAGER {
 
         Utils.print("Peripheral available, attempting to connect devices");
         gatt = peripheral.connectGatt(context, false, gattCallback, TRANSPORT_LE);
+
+        //TODO : do something some freakin chaching
     };
     private final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
         @Override
