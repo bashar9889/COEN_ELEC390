@@ -269,7 +269,6 @@ public class BLE_MANAGER {
     }
 
     public boolean readCharacteristic(final BluetoothGattCharacteristic characteristic) {
-        Utils.print("Characteristic working");
         if (gatt == null) {
             Utils.print("ERROR: Gatt is 'null', ignoring read request");
             return false;
