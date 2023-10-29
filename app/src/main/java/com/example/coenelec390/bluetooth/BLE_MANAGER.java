@@ -38,8 +38,13 @@ import androidx.core.app.ActivityCompat;
 
 import com.example.coenelec390.Utils;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 import java.util.UUID;
 
 public class BLE_MANAGER {
@@ -54,6 +59,9 @@ public class BLE_MANAGER {
     BluetoothDevice peripheral;
     Handler bleHandler;
     private boolean peripheralAvailable = false;
+
+    private Queue<Runnable> commandQueue = new LinkedList<>();
+    private boolean commandQueueBusy = false;
 
 
     public BLE_MANAGER(Activity _activity) {
@@ -121,7 +129,6 @@ public class BLE_MANAGER {
                                 requestPermissions();
                                 return;
                             }
-                            Utils.print("discovering services of  + " + peripheral.getName() + " " + delay);
                             boolean success = gatt.discoverServices();
                             if (!success) {
                                 Utils.print("DiscoveryServiceRunnable :  discoverServices failed to start ");
@@ -156,19 +163,25 @@ public class BLE_MANAGER {
                 //TODO : clean up this mess
                 UUID serviceUUID = UUID.fromString("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
                 UUID characteristicUUID = UUID.fromString("beb5483e-36e1-4688-b7f5-ea07361b26a8");
-                // get the ble gatt characteristic
+                // get the ble gatt service
                 BluetoothGattService service = gatt.getService(serviceUUID);
                 if (service != null) {
+                    //get the characteristic
                     BluetoothGattCharacteristic characteristic = service.getCharacteristic(characteristicUUID);
 
-                    if(characteristic != null){
+                    if (characteristic != null) {
                         if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
                             requestPermissions();
                             return;
                         }
-                        gatt.readCharacteristic(characteristic);
-                    }{ Utils.print("Characteristic not found");}
-                } else { Utils.print("Service not found");}
+                        gatt.setCharacteristicNotification(characteristic, true);
+                        BluetoothGattDescriptor descriptor = characteristic.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"));
+                        descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                        gatt.writeDescriptor(descriptor);
+
+
+                    } else {Utils.print("Characteristic not found");}
+                } else {Utils.print("Service not found");}
 //            List<BluetoothGattService> services = gatt.getServices();
 //            for (BluetoothGattService service : services) {
 //                Utils.print("Service found: " + service.getUuid().toString());
@@ -176,34 +189,43 @@ public class BLE_MANAGER {
 //                    Utils.print("-- Characteristic found: " + characteristic.getUuid().toString());
 //                }
 //            }
-        } else {
-            Utils.print("Service discovery failed with status: " + status);
-        }
-    }
-
-        @Override
-        public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            super.onCharacteristicRead(gatt, characteristic, status);
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                // The data is contained in the characteristic's value
-                byte[] data = characteristic.getValue();
-
             } else {
-                Utils.print("Failed to read characteristic");
+                Utils.print("Service discovery failed with status: " + status);
             }
         }
 
+        @Override
+        public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                // The data is contained in the characteristic's value
+                byte[] data = characteristic.getValue();
+                int value = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getInt();
+                Utils.print("Value from esp32 : " + String.valueOf(value));
+            } else {
+                Utils.print("Failed to read characteristic");
+            }
+            completedCommand();
+        }
 
-    @Override
-    public void onCharacteristicChanged(@NonNull BluetoothGatt gatt, @NonNull BluetoothGattCharacteristic characteristic, @NonNull byte[] value) {
-        super.onCharacteristicChanged(gatt, characteristic, value);
-    }
 
-    @Override
-    public void onDescriptorRead(@NonNull BluetoothGatt gatt, @NonNull BluetoothGattDescriptor descriptor, int status, @NonNull byte[] value) {
-        super.onDescriptorRead(gatt, descriptor, status, value);
-    }
-};
+        @Override
+        public void onCharacteristicChanged(@NonNull BluetoothGatt gatt, @NonNull BluetoothGattCharacteristic characteristic, @NonNull byte[] value) {
+            super.onCharacteristicChanged(gatt, characteristic, value);
+//            // Convert the byte array to a string
+//            String stringValue = new String(value, StandardCharsets.UTF_8);
+//            Utils.print("Value from esp32 : " + stringValue);
+            boolean success = readCharacteristic(characteristic);
+            if(success){
+                nextCommand();
+            }else {Utils.print("Failed to receive data");}
+
+        }
+
+        @Override
+        public void onDescriptorRead(@NonNull BluetoothGatt gatt, @NonNull BluetoothGattDescriptor descriptor, int status, @NonNull byte[] value) {
+            super.onDescriptorRead(gatt, descriptor, status, value);
+        }
+    };
 
     public void startScan() {
         Utils.print("Scanning started");
@@ -245,6 +267,71 @@ public class BLE_MANAGER {
             }
         });
     }
+
+    public boolean readCharacteristic(final BluetoothGattCharacteristic characteristic) {
+        Utils.print("Characteristic working");
+        if (gatt == null) {
+            Utils.print("ERROR: Gatt is 'null', ignoring read request");
+            return false;
+        }
+        if (characteristic == null) {
+            Utils.print("ERROR: Characteristic is 'null', ignoring read request");
+            return false;
+        }
+        if ((characteristic.getProperties() & BluetoothGattCharacteristic.PROPERTY_READ) == 0) {
+            Utils.print("ERROR: Characteristic cannot be read");
+            return false;
+        }
+        return commandQueue.add(new Runnable() {
+            @Override
+            public void run() {
+                if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions();
+                    return;
+                }
+                if (!gatt.readCharacteristic(characteristic)) {
+//                    Utils.print(String.format("ERROR: readCharacteristic failed for characteristic: %s", characteristic.getUuid()));
+                    completedCommand();
+                } else {
+//                    Utils.print(String.format("Reading characteristic <%s>", characteristic.getUuid()));
+                    nextCommand();
+                }
+            }
+        });
+    }
+
+    private void nextCommand() {
+        if(commandQueueBusy) {
+            return;
+        }
+        if (gatt == null) {
+            Utils.print(String.format("ERROR: GATT is 'null' for peripheral '%s', clearing command queue", peripheral.getAddress()));
+            commandQueue.clear();
+            commandQueueBusy = false;
+            return;
+        }
+        if (commandQueue.size() > 0) {
+            final Runnable bluetoothCommand = commandQueue.peek();
+            commandQueueBusy = true;
+            bleHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        bluetoothCommand.run();
+                    } catch (Exception ex) {
+                        Utils.print(String.format("ERROR: Command exception for device '%s'", peripheral.getAddress()));
+                    }
+                }
+            });
+        }
+    }
+
+    private void completedCommand() {
+        commandQueueBusy = false;
+        commandQueue.poll();
+        nextCommand();
+    }
+
 
     public void stopScan() {
         Utils.print("Scan Stopping");
