@@ -200,7 +200,7 @@ public class BLE_MANAGER {
                 // The data is contained in the characteristic's value
                 byte[] data = characteristic.getValue();
                 int value = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getInt();
-                Utils.print("Value from esp32 : " + String.valueOf(value));
+//                Utils.print("Value from esp32 : " + String.valueOf(value));
             } else {
                 Utils.print("Failed to read characteristic");
             }
@@ -214,6 +214,15 @@ public class BLE_MANAGER {
 //            // Convert the byte array to a string
 //            String stringValue = new String(value, StandardCharsets.UTF_8);
 //            Utils.print("Value from esp32 : " + stringValue);
+//            boolean success = readCharacteristic(characteristic);
+//            if(success){
+//                Utils.print("success");
+//                nextCommand();
+            StringBuilder stringValue = new StringBuilder();
+            for (byte b : value) {
+                stringValue.append(String.format("%02X ", b));
+            }
+            Utils.print("NFC TAG : " + stringValue.toString().trim());
             boolean success = readCharacteristic(characteristic);
             if(success){
                 nextCommand();
@@ -292,7 +301,7 @@ public class BLE_MANAGER {
 //                    Utils.print(String.format("ERROR: readCharacteristic failed for characteristic: %s", characteristic.getUuid()));
                     completedCommand();
                 } else {
-//                    Utils.print(String.format("Reading characteristic <%s>", characteristic.getUuid()));
+                    Utils.print(String.format("Reading characteristic <%s>", characteristic.getUuid()));
                     nextCommand();
                 }
             }
