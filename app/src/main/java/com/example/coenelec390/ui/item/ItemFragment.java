@@ -12,7 +12,7 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.example.coenelec390.databinding.FragmentItemsBinding;
 
-public class ItemFragment extends Fragment {
+public class ItemFragment extends Fragment {//TODO: To remove
 
     private FragmentItemsBinding binding;
 
@@ -24,7 +24,7 @@ public class ItemFragment extends Fragment {
         binding = FragmentItemsBinding.inflate(inflater, container, false);
         View root = binding.getRoot();
 
-        final TextView textView = binding.textHome;
+        final TextView textView = binding.textItem;
         itemViewModel.getText().observe(getViewLifecycleOwner(), textView::setText);
         return root;
     }

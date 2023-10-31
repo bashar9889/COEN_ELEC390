@@ -15,7 +15,7 @@
         android:id="@+id/navigation_items"
         android:name="com.example.coenelec390.ui.item.ItemFragment"
         android:label="@string/title_items"
-        tools:layout="@layout/fragment_items" />
+        tools:layout="@layout/activity_items" />
 
     <fragment
         android:id="@+id/navigation_notifications"
