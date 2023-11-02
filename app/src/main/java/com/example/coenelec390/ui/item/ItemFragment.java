@@ -10,18 +10,19 @@ import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
-import com.example.coenelec390.databinding.FragmentItemsBinding;
+import com.example.coenelec390.databinding.ActivityItemsBinding;
 
 public class ItemFragment extends Fragment {//TODO: To remove
 
-    private FragmentItemsBinding binding;
+    private ActivityItemsBinding binding;
+
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
         ItemViewModel itemViewModel =
                 new ViewModelProvider(this).get(ItemViewModel.class);
 
-        binding = FragmentItemsBinding.inflate(inflater, container, false);
+        binding = ActivityItemsBinding.inflate(inflater, container, false);
         View root = binding.getRoot();
 
         final TextView textView = binding.textItem;
