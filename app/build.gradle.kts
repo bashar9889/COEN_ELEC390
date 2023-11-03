@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -62,6 +63,7 @@ dependencies {
     implementation("androidx.navigation:navigation-fragment:2.6.0")
     implementation("androidx.navigation:navigation-ui:2.6.0")
     implementation("androidx.compose.material3:material3:1.1.2")
+    implementation("com.google.firebase:firebase-database:20.3.0")
 
 
     testImplementation("junit:junit:4.13.2")
